@@ -1,0 +1,42 @@
+--cpu Cortex-M3
+".\build\svc_table.o"
+".\build\rt_semaphore.o"
+".\build\rt_event.o"
+".\build\rt_list.o"
+".\build\rt_mutex.o"
+".\build\hal_cm.o"
+".\build\rt_task.o"
+".\build\rt_cmsis.o"
+".\build\rt_system.o"
+".\build\rt_time.o"
+".\build\rt_membox.o"
+".\build\rt_robin.o"
+".\build\rtx_conf_cm.o"
+".\build\rt_mailbox.o"
+".\build\hal_cm3.o"
+".\build\main.o"
+".\build\thread.o"
+".\build\semaphore.o"
+".\build\mutex.o"
+".\build\rtostimer.o"
+--strict --scatter "mbed/TARGET_LPC1768/TOOLCHAIN_ARM_STD/LPC1768.sct"
+
+
+            
+              mbed/TARGET_LPC1768/TOOLCHAIN_ARM_STD/retarget.o
+            
+              mbed/TARGET_LPC1768/TOOLCHAIN_ARM_STD/system_LPC17xx.o
+            
+              mbed/TARGET_LPC1768/TOOLCHAIN_ARM_STD/board.o
+            
+              mbed/TARGET_LPC1768/TOOLCHAIN_ARM_STD/cmsis_nvic.o
+            
+              mbed/TARGET_LPC1768/TOOLCHAIN_ARM_STD/startup_LPC17xx.o
+            
+              mbed/TARGET_LPC1768/TOOLCHAIN_ARM_STD/sys.o
+            
+              mbed/TARGET_LPC1768/TOOLCHAIN_ARM_STD/mbed.ar
+            
+            --summary_stderr --info summarysizes --map --xref --callgraph --symbols
+--info sizes --info totals --info unused --info veneers
+--list ".\build\app2_rtos.map" -o .\build\app2_rtos.axf
