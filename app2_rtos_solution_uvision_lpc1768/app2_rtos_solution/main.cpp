@@ -9,17 +9,19 @@ AnalogIn analogIn1(p19);
 
 Serial pc(USBTX, USBRX);
 
-void generateSignalNum(Thread *t)
+void digital_signal(void const *args)
 {
+	Thread* t = (Thread *) args;
 	t->signal_set(DIGITAL_SIGNAL);
 }
 
-void generateSignalAnal(Thread *t)
+void analog_signal(void const *args)
 {
+	Thread* t = (Thread *) args;
 	t->signal_set(ANALOG_SIGNAL);
 }
 
-void lecture_analog(void const *args)
+void analog_read(void const *args)
 {
 	while (true)
 	{
@@ -31,7 +33,11 @@ void lecture_analog(void const *args)
 	}
 }
 
-void lecture_num(void const *args)
+typedef struct {
+	
+} digital_struct;
+
+void digital_read(void const *args)
 {
 	int state = digitalIn1.read();
 	time_t stamp;
@@ -43,10 +49,10 @@ void lecture_num(void const *args)
 		
 		// lecture de l'étampe temporelle 
 		stamp = time(NULL);
-		
+		printf("HELLO ! Digital Read");
 		// lecture des échantillons numériques
-		if (state != digitalIn1.read())
-		{}
+		//if (state != digitalIn1.read())
+		//{}
 		// prise en charge du phénomène de rebond
 		// génération éventuelle d'un événement
 	}
@@ -64,18 +70,20 @@ void collection(void const *args)
 
 int main()
 {
-	// initialisation du RTC 
+	// initialisation du RTC
 	set_time(1422222222);
 	
 	time_t seconds = time(NULL);
-  printf("\rSeconds since January 1, 1970: %d           \n\r", seconds);
-	printf("Time as a basic string = %s                 \n\r", ctime(&seconds));
+  //printf("\rSeconds since January 1, 1970: %d           \n\r", seconds);
+	//printf("Time as a basic string = %s                 \n\r", ctime(&seconds));
 	
 	// Thread init.
-	Thread readNum(lecture_num);
-	Thread readAnal(lecture_analog);
-	RtosTimer readNumTimer(lecture_num, osTimerPeriodic, (Thread *)&readNum);
-	//RtosTimer readAnalTimer(lecture_analog, osTimerPeriodic, (Thread *)&readAnal);
+	Thread digital_thread(digital_read);
+	Thread analog_thread(analog_read);
+	
+	RtosTimer readNumTimer(digital_signal, osTimerPeriodic, &digital_thread);
+	RtosTimer readAnalTimer(analog_signal, osTimerPeriodic, &analog_thread);
+	
 	readNumTimer.start(200);
 	
 	while(1)
