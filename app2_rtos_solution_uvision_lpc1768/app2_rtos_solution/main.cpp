@@ -94,6 +94,7 @@ void analog_read(void const *args)
 		// calcul de la nouvelle moyenne courante
 		if (abs(buffer[0] - buffer[4]) > bufferSize*(maxVoltage >> 3))	//12.5% de la tension max = >> 3
 		{
+			printf("\nBuffer dif: %d 		--   Tension max %d			\n\r", abs(buffer[0] - buffer[4]), bufferSize*(maxVoltage >> 3));
 			// génération d'un événement
 			mutex.lock();
 			mail_t *mail = mail_box.alloc();
@@ -120,8 +121,8 @@ void collection(void const *args)
 		if (evt.status == osEventMail) 
 		{
 				mail_t *mail = (mail_t*)evt.value.p;
-				pc.printf("\nSource: %s  \n\r"   , mail->isNum ? "Numerique" : "Analogique");
-			  //pc.printf("\nTime: %s" \n\r, ctime(mail->timestamp));
+				pc.printf("Source: %s                 \n\r"   , mail->isNum ? "Numerique" : "Analogique");
+			  pc.printf("Time: %d 										\n\r" , (mail->timestamp));
 				
 				mutex.lock();
 				mail_box.free(mail);
@@ -132,7 +133,8 @@ void collection(void const *args)
 
 void init() {
 	// initialisation du RTC
-	set_time(1422222222);
+	//1422222222
+	set_time(0);
 	// speed up serial
 	pc.baud(19200);
 }
@@ -142,13 +144,15 @@ int main()
 	init();
 	// initialisation du RTC
 	
-	// Thread init.
 	//Thread digital_thread(digital_read);
 	Thread analog_thread(analog_read);
+	Thread collection_thread(collection);
 	
 	//RtosTimer readNumTimer(digital_signal, osTimerPeriodic, &digital_thread);
 	RtosTimer readAnalTimer(analog_signal, osTimerPeriodic, &analog_thread);
 	
 	readAnalTimer.start(250);
-	Thread::wait(osWaitForever);
+	while(1) {
+	}
+	//Thread::wait(osWaitForever);
 }
