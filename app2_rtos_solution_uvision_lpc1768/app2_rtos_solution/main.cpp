@@ -12,79 +12,100 @@ Serial pc(USBTX, USBRX);
 
 Mutex mutex;
 
+typedef struct 
+{
+	bool isNum;
+	int timestamp;	
+} mail_t;
+
 int data_digital=1;
 
-
-typedef struct {
-	int type;
-	time_t time_stamp;
-	int data;
-	int event;
-}Event;
-
-Mail<Event, 16> mail_box;
+Mail<mail_t, 16> mail_box;
 
 // ** Traitement signal digital ** //
 
-void set_digital_signal(void const *args)
+void digital_signal(void const *args)
 	{
 	Thread* t = (Thread *) args;
 	t->signal_set(DIGITAL_SIGNAL);
 }
 	
-void digital_sampling(void const *args) {
-	data_digital = digitalIn1.read();
-	set_digital_signal(args);
-}
+//void digital_sampling(void const *args) {
+//	data_digital = digitalIn1.read();
+//	set_digital_signal(args);
+//}
 
 void digital_read(void const *args)
 	{
 	// Sync at 100ms (stabilisation 50ms)
-	int state[2] = {0,0};
-	int i = 0;
-	time_t stamp;
-	while (true){
-		// Signal flags that are reported as event are automatically cleared.
-    Thread::signal_wait(DIGITAL_SIGNAL);
-		i = i%2;
-		
-		if(i==0){
-			// store
-		} else {
-			// check data with last et si pareille enregistre 
-		}
-		
-		state[i] = digitalIn1.read();
-		i++;
-		// lecture de l'étampe temporelle 
-		stamp = time(NULL);
-		printf("First : %d    Second: %d                                               \r", state[0], state[1]);
-		// lecture des échantillons numériques
-		//if (state != digitalIn1.read())
-		//{}
-		// prise en charge du phénomène de rebond
-		// génération éventuelle d'un événement
-	}
-}
+//		int state[];
+//		int isFirst = 1;
+//		int evt_detection = 0;
+//		time_t stamp;
+//		int i = 0;
+//		
+//		while (true){
+//			
+//		Thread::signal_wait(DIGITAL_SIGNAL);
+//			i = i%2;
+//		if(isFirst) {
+//			state[i] = data_digital;
+//			i++;
+//			
+//			
+//		// lecture de l'étampe temporelle 
+//		stamp = time(NULL);
 
-// ** Traitement signal analog ** //
-void analog_sampling(void const *args) {
-	//analog.time_stamp = time(NULL);
-	//data_digital = analogIn1.read();
-}
+//		if (state != digitalIn1.read())
+//		{ 
+//		}
+//		// prise en charge du phénomène de rebond
+//		// génération éventuelle d'un événement
+//				}
+//		}
+	}
+
 
 void analog_signal(void const *args){
 	Thread* t = (Thread *) args;
 	t->signal_set(ANALOG_SIGNAL);
 }
 
-void analog_read(void const *args){
-	while (true){
+void analog_read(void const *args)
+{
+	const int bufferSize = 5;
+	const unsigned short maxVoltage = 0xff;
+	
+	unsigned short buffer[bufferSize] = {0,0,0,0,0}; 
+	time_t stamp;
+	
+	while (true)
+	{
 		// synchronisation sur la période d'échantillonnage
+		Thread::signal_wait(ANALOG_SIGNAL);
 		// lecture de l'étampe temporelle
+		stamp = time(NULL);
 		// lecture des échantillons analogiques
+		buffer[4] = buffer[3];
+		buffer[3] = buffer[2];
+		buffer[2] = buffer[1];
+		buffer[1] = buffer[0];
+		buffer[0] = analogIn1.read_u16();
 		// calcul de la nouvelle moyenne courante
-		// génération éventuelle d'un événement
+		if (abs(buffer[0] - buffer[4]) > bufferSize*(maxVoltage >> 3))	//12.5% de la tension max = >> 3
+		{
+			// génération d'un événement
+			mutex.lock();
+			mail_t *mail = mail_box.alloc();
+			mutex.unlock();
+			
+			mail->isNum = false; 
+			mail->timestamp = stamp;
+			
+			mutex.lock();
+			mail_box.put(mail);
+			mutex.unlock();
+		}
 	}
 }
 
@@ -93,8 +114,19 @@ void collection(void const *args)
 	while (true)
 	{
 		// attente et lecture d'un événement
+		osEvent evt = mail_box.get();
+		
 		// écriture de l'événement en sortie (port série)
-		//pc.printf("Time as a basic string = %s", ctime(&seconds));
+		if (evt.status == osEventMail) 
+		{
+				mail_t *mail = (mail_t*)evt.value.p;
+				pc.printf("\nSource: %s  \n\r"   , mail->isNum ? "Numerique" : "Analogique");
+			  //pc.printf("\nTime: %s" \n\r, ctime(mail->timestamp));
+				
+				mutex.lock();
+				mail_box.free(mail);
+				mutex.unlock();
+		}
 	}
 }
 
@@ -103,21 +135,20 @@ void init() {
 	set_time(1422222222);
 	// speed up serial
 	pc.baud(19200);
-	led1 = 0;
 }
 
 int main()
 {
 	init();
-	time_t seconds = time(NULL);
-	//printf("Time as a basic string = %s                 \n\r", ctime(&seconds));
+	// initialisation du RTC
 	
 	// Thread init.
-	Thread digital_thread(digital_read);
-	//Thread analog_thread(analog_read);
+	//Thread digital_thread(digital_read);
+	Thread analog_thread(analog_read);
 	
-	RtosTimer readNumTimer(digital_sampling, osTimerPeriodic, &digital_thread);
-	//RtosTimer readAnalTimer(analog_sampling, osTimerPeriodic);
-	readNumTimer.start(1000);
+	//RtosTimer readNumTimer(digital_signal, osTimerPeriodic, &digital_thread);
+	RtosTimer readAnalTimer(analog_signal, osTimerPeriodic, &analog_thread);
+	
+	readAnalTimer.start(250);
 	Thread::wait(osWaitForever);
 }
