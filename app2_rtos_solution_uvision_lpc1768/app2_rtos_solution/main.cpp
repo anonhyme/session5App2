@@ -3,8 +3,6 @@
 
 #define DIGITAL_SIGNAL 0x01
 #define ANALOG_SIGNAL 0x02
-#define DEFAULT_DIGITAL 1
-
 
 DigitalIn digitalIn1(p15);
 AnalogIn analogIn1(p19);
@@ -15,15 +13,16 @@ Serial pc(USBTX, USBRX);
 Mutex mutex;
 
 int data_digital=1;
-int toCompare = 0; //1 if we need to check
-int data[2] = {1, 1};
-typedef struct 
-{
-	bool isNum;
-	int timestamp;	
-} mail_t;
 
-Mail<mail_t, 16> mail_box;
+
+typedef struct {
+	int type;
+	time_t time_stamp;
+	int data;
+	int event;
+}Event;
+
+Mail<Event, 16> mail_box;
 
 // ** Traitement signal digital ** //
 
@@ -34,34 +33,37 @@ void set_digital_signal(void const *args)
 }
 	
 void digital_sampling(void const *args) {
-	int i = toCompare%2;
-	data[i] = digitalIn1.read();
+	data_digital = digitalIn1.read();
 	set_digital_signal(args);
-	
 }
 
 void digital_read(void const *args)
 	{
-	
+	// Sync at 100ms (stabilisation 50ms)
+	int state[2] = {0,0};
+	int i = 0;
+	time_t stamp;
 	while (true){
-		time_t stamp;
-		
+		// Signal flags that are reported as event are automatically cleared.
     Thread::signal_wait(DIGITAL_SIGNAL);
-		if(toCompare && (data[0] == data[1])){
-			printf("Un event");
+		i = i%2;
+		
+		if(i==0){
+			// store
+		} else {
+			// check data with last et si pareille enregistre 
 		}
 		
+		state[i] = digitalIn1.read();
+		i++;
+		// lecture de l'étampe temporelle 
 		stamp = time(NULL);
-		mutex.lock();
-		mail_t *mail = mail_box.alloc();
-		mutex.unlock();
-		
-		mail->isNum = true; 
-		mail->timestamp = stamp;
-		
-		mutex.lock();
-		mail_box.put(mail);
-		mutex.unlock();
+		printf("First : %d    Second: %d                                               \r", state[0], state[1]);
+		// lecture des échantillons numériques
+		//if (state != digitalIn1.read())
+		//{}
+		// prise en charge du phénomène de rebond
+		// génération éventuelle d'un événement
 	}
 }
 
@@ -91,18 +93,8 @@ void collection(void const *args)
 	while (true)
 	{
 		// attente et lecture d'un événement
-		osEvent evt = mail_box.get();
-		
 		// écriture de l'événement en sortie (port série)
-		if (evt.status == osEventMail) 
-		{
-				mail_t *mail = (mail_t*)evt.value.p;
-				pc.printf("\nSource: %s  \n\r"   , mail->isNum ? "Numerique" : "Analogique");
-			  //pc.printf("\nTime: %s" \n\r, ctime(mail->timestamp));
-				mutex.lock();
-				mail_box.free(mail);
-				mutex.unlock();
-		}
+		//pc.printf("Time as a basic string = %s", ctime(&seconds));
 	}
 }
 
